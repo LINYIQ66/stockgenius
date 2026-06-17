@@ -10,6 +10,8 @@
   <img src="screenshot.jpg" alt="StockGenius 主界面" width="48%"> <img src="screenshot-2.jpg" alt="StockGenius 分析界面" width="48%">
   <br>
   <img src="screenshot-3.jpg" alt="StockGenius 财务数据" width="48%"> <img src="screenshot-4.jpg" alt="StockGenius Stock Swarm" width="48%">
+<br>
+  <img src="screenshot-5.jpg" alt="StockGenius 数据终端" width="48%">
 </p>
 
 ---
