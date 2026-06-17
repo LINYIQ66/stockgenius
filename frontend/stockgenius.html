@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>StockGenius — KOPI AI 股票分析</title>
+<script src="https://s3.tradingview.com/tv.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Inter',sans-serif;background:#FAF6F0;color:#4A3728}
+  .container{max-width:1440px;margin:0 auto;padding:16px 24px}
+  .header{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid #E8DCC8;margin-bottom:12px;flex-wrap:wrap;gap:8px}
+  .logo{display:flex;align-items:center;gap:8px;text-decoration:none}
+  .logo-icon{width:36px;height:36px;background:linear-gradient(135deg,#C9A84C,#B8922E);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;color:#fff}
+  .logo-text{font-size:18px;font-weight:700;color:#6F4E37}
+  .logo-text span{color:#C9A84C}
+  .header-r{display:flex;align-items:center;gap:8px}
+  .lang-btn{background:#fff;border:1px solid #E8DCC8;border-radius:7px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;color:#6F4E37;font-family:inherit}
+  .lang-btn.active{background:#C9A84C;color:#fff;border-color:#C9A84C}
+
+  .ml{display:flex;gap:14px}
+  .sb{width:170px;flex-shrink:0}
+  .mc{flex:1;min-width:0;display:flex;flex-direction:column;gap:12px}
+
+  .panel{background:#fff;border:1px solid #E8DCC8;border-radius:12px;overflow:hidden}
+  .ph{padding:9px 12px;border-bottom:1px solid #F0E8D8;font-size:12px;font-weight:600;color:#6F4E37;display:flex;justify-content:space-between}
+
+  .ss{padding:6px 8px;border-bottom:1px solid #F0E8D8}
+  .ss input{width:100%;background:#FAF6F0;border:1px solid #E8DCC8;border-radius:6px;padding:6px 8px;font-size:11px;color:#4A3728;outline:none;font-family:inherit}
+  .ss input:focus{border-color:#C9A84C}
+  .sl{max-height:calc(100vh - 280px);overflow-y:auto}
+  .sl::-webkit-scrollbar{width:3px}
+  .sl::-webkit-scrollbar-thumb{background:#E8DCC8;border-radius:2px}
+  .si{display:flex;align-items:center;padding:6px 12px;cursor:pointer;border-left:3px solid transparent;font-size:12px}
+  .si:hover{background:#FFF8E7}
+  .si.on{background:#FFF5E0;border-left-color:#C9A84C}
+
+  .chart-p{height:360px;border-radius:12px;overflow:hidden}
+  .chart-p #tv{width:100%;height:100%}
+
+  .ap{padding:16px 20px}
+  .ah{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;flex-wrap:wrap;gap:8px}
+  .at{font-size:22px;font-weight:800;color:#6F4E37}
+  .at small{font-size:12px;font-weight:400;color:#B8A080;margin-left:6px}
+  .tags{display:flex;gap:4px;flex-wrap:wrap}
+  .tag{font-size:10px;padding:2px 8px;border-radius:8px;font-weight:600}
+  .tg-up{background:#ECFDF5;color:#059669;border:1px solid #A7F3D0}
+  .tg-mid{background:#FFFBEB;color:#D97706;border:1px solid #FCD34D}
+  .tg-dn{background:#FEF2F2;color:#DC2626;border:1px solid #FCA5A5}
+
+  .proj-nav{display:flex;gap:6px;padding:6px 0 10px;flex-wrap:wrap;border-bottom:1px solid #E8DCC8;margin-bottom:10px}
+  .proj-btn{font-size:11px;padding:5px 12px;border-radius:7px;text-decoration:none;font-weight:500;color:#6F4E37;background:#fff;border:1px solid #E8DCC8;transition:all .15s}
+  .proj-btn:hover{background:#FFF5E0;border-color:#C9A84C}
+  .proj-btn.active{background:#C9A84C;color:#fff;border-color:#C9A84C}
+  .proj-ext{font-size:10px;margin-left:2px}
+
+  .sg{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:10px 0}
+  .sc{background:#FAF6F0;border-radius:6px;padding:8px 10px}
+  .sc .ic{font-size:11px;font-weight:600;color:#C9A84C;margin-bottom:2px}
+  .sc .tx{font-size:11px;color:#6F4E37;line-height:1.5}
+
+  .sc-full{grid-column:1/-1}
+  .sc-full .tx{white-space:pre-line}
+
+  .tw{background:#FAF6F0;border-radius:6px;border-left:3px solid #C9A84C;padding:8px 10px;font-size:11px;color:#6F4E37;line-height:1.6;min-height:20px}
+
+  .start-btn{display:block;margin:14px auto 0;padding:10px 28px;background:#6F4E37;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
+  .start-btn:hover{background:#C9A84C}
+  .start-btn:disabled{opacity:.5;cursor:not-allowed}
+
+  .ld{display:none;text-align:center;padding:20px 0}
+  .ld.on{display:block}
+  .sp{width:22px;height:22px;border:3px solid #E8DCC8;border-top-color:#C9A84C;border-radius:50%;animation:sp .8s linear infinite;margin:0 auto 6px}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .ld p{color:#B8A080;font-size:11px}
+
+  .tw .cr{display:inline-block;width:2px;height:13px;background:#C9A84C;animation:bl .7s step-end infinite;vertical-align:text-bottom}
+  .td .cr{display:none}
+  @keyframes bl{50%{opacity:0}}
+  .ldot{display:inline-block;width:5px;height:5px;background:#22c55e;border-radius:50%;animation:p2 2s infinite;margin-right:3px}
+  @keyframes p2{0%,100%{opacity:1}50%{opacity:.3}}
+  .af{display:flex;justify-content:space-between;align-items:center;margin-top:8px;flex-wrap:wrap;gap:4px;font-size:10px;color:#B8A080}
+
+  /* SEC financial mini-table */
+  .fin-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:4px}
+  .fin-cell{background:#fff;border:1px solid #E8DCC8;border-radius:5px;padding:5px 7px;text-align:center}
+  .fin-cell .fv{font-size:14px;font-weight:700;color:#6F4E37}
+  .fin-cell .fl{font-size:9px;color:#B8A080;margin-top:1px}
+  .fin-src{font-size:9px;color:#C9A84C;text-align:right;margin-top:3px}
+
+  @media(max-width:900px){
+    .ml{flex-direction:column}
+    .sb{width:100%}
+    .sl{max-height:140px}
+    .sg{grid-template-columns:1fr}
+    .chart-p{height:240px}
+    .fin-grid{grid-template-columns:repeat(2,1fr)}
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <header class="header">
+    <a href="#" class="logo">
+      <div class="logo-icon">✦</div>
+      <div class="logo-text">Stock<span>Genius</span></div>
+    </a>
+    <span style="font-size:10px;color:#C9A84C;font-weight:600;padding:3px 8px;background:rgba(201,168,76,.1);border-radius:6px;margin-left:6px">KOPI AI</span>
+    <div class="header-r">
+      <span class="lang-btn active">中</span>
+      <a href="/stockgenius-en.html" class="lang-btn">EN</a>
+    </div>
+  </header>
+
+  <!-- 项目导航 -->
+  <div class="proj-nav">
+    <a href="https://sub.readinghero.xyz/stockgenius.html" class="proj-btn active">📈 StockGenius</a>
+    <a href="http://45.32.109.144/stock/" target="_blank" class="proj-btn">📊 Kopi Stock 六维分析 <span class="proj-ext">↗</span></a>
+    <a href="https://sub.readinghero.xyz/tradecat/" target="_blank" class="proj-btn">📡 KOPI 数据终端 <span class="proj-ext">↗</span></a>
+    <a href="https://kopiaiagent.com/ipo/" target="_blank" class="proj-btn" style="background:#6F4E37;color:#fff;border-color:#6F4E37">🚀 SpaceX IPO <span class="proj-ext">↗</span></a>
+  </div>
+
+  <div class="ml">
+    <div class="sb">
+      <div class="panel">
+        <div class="ph"><span id="stTitle">美股</span> <span id="stCnt">100</span></div>
+        <div class="ss"><input id="sInp" placeholder="搜索代码..."></div>
+        <div class="sl" id="sList"></div>
+      </div>
+    </div>
+    <div class="mc">
+      <div class="panel chart-p"><div id="tv"></div></div>
+      <div class="panel ap">
+        <div class="ah">
+          <div>
+            <div class="at" id="tickD">AAPL <small id="nameD">选择股票</small></div>
+            <div style="font-size:11px;color:#6F4E37;font-weight:500;margin-top:2px" id="priceD"></div>
+            <div style="font-size:9px;color:#B8A080;margin-top:1px" id="timeD"></div>
+          </div>
+          <div class="tags">
+            <span class="tag tg-mid" id="sigT">➡️ 待分析</span>
+          </div>
+        </div>
+
+        <button class="start-btn" id="goBtn" onclick="start()">🚀 开始分析</button>
+
+        <div class="ld" id="lod">
+          <div class="sp"></div>
+          <p id="loadTxt">⏳ KOPI AI 分析中... 7 大维度扫描 + SEC 财务</p>
+        </div>
+
+        <div id="cnt" style="display:none">
+          <!-- SEC Financial Summary -->
+          <div id="secFinCard" class="sc sc-full" style="margin-bottom:8px;display:none">
+            <div class="ic">💰 SEC EDGAR 财务数据 <span style="font-weight:400;color:#B8A080;font-size:9px" id="secPeriod"></span></div>
+            <div class="fin-grid" id="finGrid"></div>
+            <div class="fin-src" id="secSrc">数据来源: SEC EDGAR XBRL</div>
+          </div>
+
+          <div class="sg">
+            <div class="sc"><div class="ic">📊 技术面</div><div class="tx" id="dTech">-</div></div>
+            <div class="sc"><div class="ic">📰 消息面</div><div class="tx" id="dNews">-</div></div>
+            <div class="sc"><div class="ic">🔥 社媒热度</div><div class="tx" id="dSoc">-</div></div>
+            <div class="sc"><div class="ic">💰 财务</div><div class="tx" id="dFin">-</div></div>
+            <div class="sc"><div class="ic">👤 创始人</div><div class="tx" id="dFnd">-</div></div>
+            <div class="sc"><div class="ic">🏦 机构持仓</div><div class="tx" id="dFnds">-</div></div>
+            <div class="sc"><div class="ic">🌍 宏观</div><div class="tx" id="dMacro">-</div></div>
+            <div class="sc"><div class="ic">🎯 期权</div><div class="tx" id="dOpts">-</div></div>
+          </div>
+          <div id="newsBar" style="margin-bottom:8px;display:none"></div>
+          <div class="tw" id="sBox"><span id="sTx"></span><span class="cr" id="c1"></span></div>
+          <div class="af"><span><span class="ldot"></span><span id="brewT">实时分析</span></span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div style="text-align:center;padding:16px 0 8px;font-size:11px;color:#9B8579;border-top:1px solid #E8DCC8;margin-top:20px">
+  Powered By <strong style="color:#C9A84C">KOPI AI</strong>
+</div>
+
+<script>
+const API='https://token-plan-sgp.xiaomimimo.com/v1';
+const KEY='YOUR_MIMO_API_KEY'; // Set via env or replace
+// 100 stocks
+const SS=['AAPL','MSFT','GOOGL','AMZN','NVDA','META','TSLA','AVGO','JPM','V','JNJ','WMT','MA','PG','UNH','HD','DIS','NFLX','ADBE','CRM','INTC','AMD','PYPL','COIN','PLTR','SMCI','ARM','HIMS','PFE','LLY','XOM','CVX','BA','CAT','KO','PEP','MCD','SBUX','NKE','CSCO','ORCL','QCOM','MU','GS','MS','BAC','WFC','SCHW','BLK','AXP','ABNB','DASH','SPOT','NOW','PANW','CRWD','SHOP','HOOD','AFRM','SPCX','SPCU','RKLB','LUNR','ASTS','UBER','SQ','RBLX','SNAP','NET','DDOG','SNOW','ZS','MDB','TEAM','WDAY','DELL','IBM','T','VZ','TMUS','ROKU','DKNG','RIVN','ENPH','FSLR','NEE','GE','RTX','LMT','NOC','GD','CCJ','BITO','IBIT','VOO','SPY','QQQ','IWM'];
+const NN={zh:{AAPL:'苹果',MSFT:'微软',GOOGL:'谷歌',AMZN:'亚马逊',NVDA:'英伟达',META:'Meta',TSLA:'特斯拉',AVGO:'博通',JPM:'摩根大通',V:'Visa',JNJ:'强生',WMT:'沃尔玛',MA:'万事达',PG:'宝洁',UNH:'联合健康',HD:'家得宝',DIS:'迪士尼',NFLX:'奈飞',ADBE:'Adobe',CRM:'赛富时',INTC:'英特尔',AMD:'AMD',PYPL:'PayPal',COIN:'Coinbase',PLTR:'Palantir',SMCI:'超微电脑',ARM:'Arm',HIMS:'Hims',PFE:'辉瑞',LLY:'礼来',XOM:'埃克森美孚',CVX:'雪佛龙',BA:'波音',CAT:'卡特彼勒',KO:'可口可乐',PEP:'百事',MCD:'麦当劳',SBUX:'星巴克',NKE:'耐克',CSCO:'思科',ORCL:'甲骨文',QCOM:'高通',MU:'美光',GS:'高盛',MS:'摩根士丹利',BAC:'美国银行',WFC:'富国银行',SCHW:'嘉信',BLK:'贝莱德',AXP:'美国运通',ABNB:'Airbnb',DASH:'DoorDash',SPOT:'Spotify',NOW:'ServiceNow',PANW:'Palo Alto',CRWD:'CrowdStrike',SHOP:'Shopify',HOOD:'Robinhood',AFRM:'Affirm',SPCX:'SpaceX',SPCU:'2X做多SpaceX',RKLB:'火箭实验室',LUNR:'直觉机器',ASTS:'AST太空移动',UBER:'优步',SQ:'Block',RBLX:'Roblox',SNAP:'Snap',NET:'Cloudflare',DDOG:'Datadog',SNOW:'Snowflake',ZS:'Zscaler',MDB:'MongoDB',TEAM:'Atlassian',WDAY:'Workday',DELL:'戴尔',IBM:'IBM',T:'AT&T',VZ:'Verizon',TMUS:'T-Mobile',ROKU:'Roku',DKNG:'DraftKings',RIVN:'Rivian',ENPH:'Enphase',FSLR:'First Solar',NEE:'新纪元能源',GE:'通用电气',RTX:'雷神',LMT:'洛克希德马丁',NOC:'诺斯洛普',GD:'通用动力',CCJ:'Cameco铀矿',BITO:'比特币期货ETF',IBIT:'iShares比特币',VOO:'标普500 ETF',SPY:'SPY ETF',QQQ:'纳指100 ETF',IWM:'罗素2000 ETF'},en:{}};
+const TR={zh:{st:'美股',sp:'搜索代码...',go:'🚀 开始分析',lo:'⏳ KOPI AI 分析中... 7 维度 + SEC 财务',bw:'实时分析',wait:'待分析'},en:{st:'Stocks',sp:'Search...',go:'🚀 Start Analysis',lo:'⏳ KOPI AI analyzing... 7 dimensions + SEC',bw:'Live',wait:'Select stock'}};
+
+let ln='zh',cur='AAPL',ch=null,analyzing=false;
+let cikCache={};
+
+function $(id){return document.getElementById(id)}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\"/g,'&quot;')}
+function t(k){return TR[ln][k]||k}
+
+function sl(l){
+  ln=l;
+  $('lbzh').className='lang-btn'+(l==='zh'?' active':'');
+  $('lben').className='lang-btn'+(l==='en'?' active':'');
+  rd($('sInp').value);
+  $('stTitle').textContent=t('st');
+  $('goBtn').textContent=t('go');
+  $('loadTxt').textContent=t('lo');
+  $('sInp').placeholder=t('sp');
+}
+
+function rd(f){
+  const el=$('sList'),q=f.toUpperCase();
+  const fl=q?SS.filter(s=>s.includes(q)||(NN[ln][s]||'').toUpperCase().includes(q)):SS;
+  $('stCnt').textContent=fl.length;
+  if(!fl.length){el.innerHTML='<div style="padding:16px;text-align:center;color:#B8A080;font-size:11px">—</div>';return}
+  el.innerHTML=fl.map(s=>`<div class="si ${s===cur?'on':''}" onclick="pk('${s}')"><span>${s} <span style="color:#B8A080;font-size:10px">${NN[ln][s]||''}</span></span></div>`).join('');
+}
+
+function pk(t){
+  cur=t;
+  rd($('sInp').value);
+  upCh(t);
+  $('cnt').style.display='none';
+  $('goBtn').style.display='block';
+  $('tickD').innerHTML=t+' <small id="nameD">'+NN[ln][t]||''+'</small>';
+  $('timeD').textContent='';
+  $('sigT').textContent=ln==='zh'?'➡️ 待分析':'➡️ Ready';
+  $('sigT').className='tag tg-mid';
+  // Pre-fetch SEC data on stock select
+  fetchSEC(t);
+}
+
+function upCh(t){
+  $('tv').innerHTML='';
+  if(typeof TradingView==='undefined'){$('tv').innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#B8A080;font-size:13px">⏳ Loading…</div>';return setTimeout(()=>upCh(t),1000)}
+  ch=new TradingView.widget({container_id:'tv',autosize:true,symbol:t,interval:'D',timezone:'America/New_York',theme:'Light',style:'1',locale:ln==='zh'?'zh_CN':'en',toolbar_bg:'#fff',enable_publishing:false,hide_top_toolbar:false,hide_legend:false,save_image:false,allow_symbol_change:false,studies:[],disabled_features:['use_localstorage_for_settings','header_symbol_change'],overrides:{'paneProperties.background':'#fff','paneProperties.vertGridProperties.color':'#F5F0E8','paneProperties.horzGridProperties.color':'#F5F0E8','symbolWatermarkProperties.transparency':90,'scalesProperties.textColor':'#B8A080','mainSeriesProperties.candleStyle.upColor':'#22c55e','mainSeriesProperties.candleStyle.downColor':'#ef4444'}});
+}
+
+function fmtB(n){if(!n||isNaN(n))return null;if(Math.abs(n)>=1e12)return'$'+(n/1e12).toFixed(2)+'T';if(Math.abs(n)>=1e9)return'$'+(n/1e9).toFixed(2)+'B';if(Math.abs(n)>=1e6)return'$'+(n/1e6).toFixed(2)+'M';return'$'+n.toLocaleString()}
+function fmtBS(n){if(!n||isNaN(n))return null;if(Math.abs(n)>=1e12)return(n/1e12).toFixed(2)+'T';if(Math.abs(n)>=1e9)return(n/1e9).toFixed(2)+'B';if(Math.abs(n)>=1e6)return(n/1e6).toFixed(2)+'M';return n.toLocaleString()}
+
+// ── SEC EDGAR API ──
+async function loadCIKCache(){
+  if(Object.keys(cikCache).length>0)return;
+  try{
+    const r=await fetch('https://www.sec.gov/files/company_tickers.json',{headers:{'User-Agent':'KOPI AI StockGenius/1.0 (contact@kopiaiagent.com)'}});
+    const d=await r.json();
+    for(const[k,v]of Object.entries(d)){
+      cikCache[v.ticker]=String(v.cik_str).padStart(10,'0');
+    }
+  }catch(e){console.warn('CIK cache load failed:',e.message)}
+}
+
+async function getCIK(ticker){
+  await loadCIKCache();
+  // Check cache
+  if(cikCache[ticker])return cikCache[ticker];
+  // Hardcoded fallbacks for known tickers
+  const fb={SPCX:'0001181412',RKLB:'0001817359',LUNR:'0001848701',ASTS:'0001772784',COIN:'0001679788',PLTR:'0001321655',SMCI:'0001375365',HOOD:'0001839408',AFRM:'0001792789',ARM:'0001936171',HIMS:'0001784121',RIVN:'0001869239',ENPH:'0001463101',FSLR:'0001272508',DKNG:'0001880613',ROKU:'0001428439',SNOW:'0001640147',DDOG:'0001569355',NET:'0001477333',ZS:'0001713683',MDB:'0001441816',TEAM:'0001650372',WDAY:'0001327811'};
+  return fb[ticker]||null;
+}
+
+async function fetchSEC(ticker){
+  const cik=await getCIK(ticker);
+  if(!cik){showSEC(null);return}
+  try{
+    const r=await fetch(`https://data.sec.gov/api/xbrl/companyfacts/CIK${cik}.json`,{headers:{'User-Agent':'KOPI AI StockGenius/1.0 (contact@kopiaiagent.com)'}});
+    const d=await r.json();
+    const gaap=d.facts?.['us-gaap']||{};
+
+    // Find latest 10-K annual data
+    function getLatest(metric,unit='USD'){
+      const arr=gaap[metric]?.units?.[unit]||[];
+      const annuals=arr.filter(e=>e.form==='10-K').sort((a,b)=>b.fy-a.fy);
+      if(annuals.length)return annuals[0];
+      const qtrs=arr.filter(e=>e.form==='10-Q').sort((a,b)=>b.fy-b.fy||(b.fp||'').localeCompare(a.fp||''));
+      return qtrs[0]||arr[0]||null;
+    }
+
+    const rev=getLatest('Revenues')||getLatest('RevenueFromContractWithCustomerExcludingAssessedTax');
+    const ni=getLatest('NetIncomeLoss');
+    const eps=getLatest('EarningsPerShareDiluted','USD/shares');
+    const assets=getLatest('Assets');
+    const cash=getLatest('CashAndCashEquivalentsAtCarryingValue');
+    const equity=getLatest('StockholdersEquity');
+    const ocf=getLatest('NetCashProvidedByUsedInOperatingActivities');
+
+    if(rev||ni||eps){
+      const data={
+        revenue:rev?.val,
+        netIncome:ni?.val,
+        eps:eps?.val,
+        assets:assets?.val,
+        cash:cash?.val,
+        equity:equity?.val,
+        ocf:ocf?.val,
+        period:rev?.fy?`FY${rev.fy}`:(ni?.fy?`FY${ni.fy}`:'')
+      };
+      showSEC(data);
+    }else{showSEC(null)}
+  }catch(e){console.warn('SEC fetch error:',e.message);showSEC(null)}
+}
+
+function showSEC(d){
+  const card=$('secFinCard'),grid=$('finGrid'),period=$('secPeriod'),src=$('secSrc');
+  if(!d||(!d.revenue&&!d.netIncome&&!d.eps)){
+    // Try to extract from backend financial text
+    const ft=$('dFin').textContent||'';
+    const revM=ft.match(/收入[为：:]\s*\$?([\d,.]+[TBM]?)/);
+    const niM=ft.match(/净利润[为：:达]?\s*\$?([\d,.]+[TBM]?)/);
+    const epsM=ft.match(/EPS[为：:]\s*\$?([\d,.]+)/);
+    if(!revM&&!niM&&!epsM){card.style.display='none';return}
+    const items=[];
+    if(revM)items.push({l:'营收',v:revM[1]});
+    if(niM)items.push({l:'净利润',v:niM[1]});
+    if(epsM)items.push({l:'EPS',v:'$'+epsM[1]});
+    card.style.display='block';
+    period.textContent='';
+    src.textContent='数据来源: SEC EDGAR (后端分析)';
+    grid.innerHTML=items.map(x=>`<div class="fin-cell"><div class="fv">${x.v}</div><div class="fl">${x.l}</div></div>`).join('');
+    return;
+  }
+  card.style.display='block';
+  period.textContent=d.period?' · '+d.period:'';
+  src.textContent='数据来源: SEC EDGAR XBRL';
+  const items=[
+    {l:'营收',v:fmtB(d.revenue)},
+    {l:'净利润',v:fmtB(d.netIncome)},
+    {l:'EPS',v:d.eps?'$'+d.eps.toFixed(2):null},
+    {l:'总资产',v:fmtB(d.assets)},
+    {l:'现金',v:fmtB(d.cash)},
+    {l:'股东权益',v:fmtB(d.equity)},
+    {l:'经营现金流',v:fmtB(d.ocf)},
+    {l:'ROE',v:(d.netIncome&&d.equity)?(d.netIncome/d.equity*100).toFixed(1)+'%':null}
+  ].filter(x=>x.v);
+  grid.innerHTML=items.map(x=>`<div class="fin-cell"><div class="fv">${x.v}</div><div class="fl">${x.l}</div></div>`).join('');
+}
+
+async function start(){
+  if(analyzing)return;
+  analyzing=true;
+  const btn=$('goBtn');
+  btn.style.display='none';
+  $('lod').classList.add('on');
+  $('cnt').style.display='none';
+  // Fetch SEC data in parallel
+  fetchSEC(cur);
+  try{
+    const r=await fetch('/api/stock/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({symbol:cur,lang:ln})});
+    const d=await r.json();
+    if(!r.ok)throw new Error(d.error||'API error');
+    const n=NN[ln][cur]||cur;
+    $('tickD').innerHTML=cur+' <small>'+n+'</small>';
+    if(d.price)$('priceD').textContent='💲 '+d.price+(d.change?' · '+d.change:'');
+    $('timeD').textContent='📅 '+new Date().toLocaleString();
+    const sig=ln==='zh'?(d.signal||'震荡'):(d.signal||'neutral');
+    const st=$('sigT');
+    if(sig.includes('涨')||sig.includes('bull')){st.textContent='📈 '+sig;st.className='tag tg-up'}
+    else if(sig.includes('跌')||sig.includes('bear')){st.textContent='📉 '+sig;st.className='tag tg-dn'}
+    else{st.textContent='➡️ '+sig;st.className='tag tg-mid'}
+    $('dTech').textContent=d.technical||'-';
+    $('dNews').textContent=d.news||'-';
+    $('dSoc').textContent=d.social||'-';
+    $('dFin').textContent=d.financial||'-';
+    $('dFnd').textContent=d.founder||'-';
+    $('dFnds').textContent=d.funds||'-';
+    $('dMacro').textContent=d.macro||'-';
+    $('dOpts').textContent=d.options||'-';
+    // Show SEC card from parsed backend financial data
+    showSEC(null);
+    const nb=$('newsBar');
+    if(d.news_headlines&&d.news_headlines.length){
+      nb.style.display='block';
+      nb.innerHTML='<div style="font-size:10px;font-weight:600;color:#C9A84C;margin-bottom:4px">📡 LIVE 实时新闻</div>'+
+        d.news_headlines.map(h=>'<div style="font-size:10px;color:#4A3728;padding:3px 0;border-bottom:1px solid #F0E8D8">📰 '+esc(h)+'</div>').join('');
+    }else{nb.style.display='none'}
+    $('lod').classList.remove('on');
+    $('cnt').style.display='block';
+    $('sTx').textContent=d.strategy||'-';
+    document.querySelectorAll('.tw').forEach(el=>el.classList.add('td'));
+  }catch(e){
+    $('lod').classList.remove('on');
+    $('cnt').style.display='block';
+    $('tickD').innerHTML=cur+' <small>—</small>';
+    $('sTx').textContent='⚠️ '+(e.message||'分析失败');
+    document.querySelectorAll('.tw').forEach(el=>el.classList.add('td'));
+  }
+  analyzing=false;
+}
+
+$('sInp').addEventListener('input',e=>rd(e.target.value));
+rd('');
+upCh('AAPL');
+$('tickD').innerHTML='AAPL <small>苹果</small>';
+$('stCnt').textContent=SS.length;
+</script>
+</body>
+</html>

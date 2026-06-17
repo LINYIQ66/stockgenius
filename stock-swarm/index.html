@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KOPI 多智能体股票分析</title>
+<script src="https://s3.tradingview.com/tv.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Inter',sans-serif;background:#FAF6F0;color:#4A3728}
+  .container{max-width:1440px;margin:0 auto;padding:16px 24px}
+  .header{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid #E8DCC8;margin-bottom:16px;flex-wrap:wrap;gap:8px}
+  .logo{display:flex;align-items:center;gap:8px;text-decoration:none}
+  .logo-icon{width:36px;height:36px;background:linear-gradient(135deg,#C9A84C,#B8922E);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;color:#fff}
+  .logo-text{font-size:18px;font-weight:700;color:#6F4E37}
+  .logo-text span{color:#C9A84C}
+  .subtitle{font-size:11px;color:#B8A080;margin-top:1px}
+
+  .search-box{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+  .search-box input{flex:1;min-width:200px;padding:10px 14px;border:2px solid #E8DCC8;border-radius:10px;font-size:14px;background:#fff;color:#4A3728;outline:none;font-family:inherit}
+  .search-box input:focus{border-color:#C9A84C}
+  .search-box button{padding:10px 24px;background:linear-gradient(135deg,#C9A84C,#B8922E);border:none;border-radius:10px;color:#fff;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;transition:opacity .2s}
+  .search-box button:hover{opacity:.9}
+  .search-box button:disabled{opacity:.5;cursor:not-allowed}
+
+  .quick-stocks{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:12px}
+  .quick-stocks button{padding:4px 10px;border:1px solid #E8DCC8;border-radius:6px;background:#fff;font-size:11px;cursor:pointer;color:#6F4E37;font-family:inherit;transition:all .15s}
+  .quick-stocks button:hover{background:#FFF5E0;border-color:#C9A84C}
+  .quick-stocks button.on{background:#C9A84C;color:#fff;border-color:#C9A84C}
+
+  .agents-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+  .agent-card{background:#fff;border:1px solid #E8DCC8;border-radius:12px;padding:12px;position:relative;transition:border-color .3s}
+  .agent-card .icon{font-size:22px;margin-bottom:4px}
+  .agent-card .name{font-size:12px;font-weight:700;color:#6F4E37}
+  .agent-card .role{font-size:9px;color:#B8A080;margin-bottom:4px}
+  .agent-card .status{font-size:9px;color:#B8A080;display:flex;align-items:center;gap:4px;margin-bottom:4px}
+  .agent-card .status .dot{width:6px;height:6px;border-radius:50%;display:inline-block}
+  .dot.idle{background:#E8DCC8}
+  .dot.working{background:#C9A84C;animation:p2 1s infinite}
+  .dot.done{background:#22c55e}
+  .dot.err{background:#ef4444}
+  @keyframes p2{0%,100%{opacity:1}50%{opacity:.3}}
+  .agent-card .result{display:none;margin-top:4px;font-size:10px;color:#4A3728;line-height:1.6;max-height:180px;overflow-y:auto;white-space:pre-wrap;background:#FAF6F0;padding:6px 8px;border-radius:6px;border-left:2px solid}
+  .agent-card .result.show{display:block}
+
+  .chart-area{background:#fff;border:1px solid #E8DCC8;border-radius:12px;overflow:hidden;margin-bottom:14px}
+  .chart-area .chart-p{height:360px}
+  .chart-area .chart-p #tv{width:100%;height:100%}
+
+  .summary-panel{background:#fff;border:1px solid #E8DCC8;border-radius:12px;padding:16px}
+  .summary-panel .title{font-size:13px;font-weight:700;color:#6F4E37;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+  .summary-panel .title .badge{font-size:9px;padding:2px 8px;border-radius:8px;font-weight:600}
+  .badge.buy{background:#ECFDF5;color:#059669;border:1px solid #A7F3D0}
+  .badge.sell{background:#FEF2F2;color:#DC2626;border:1px solid #FCA5A5}
+  .badge.hold{background:#FFFBEB;color:#D97706;border:1px solid #FCD34D}
+  .summary-panel .content{font-size:12px;color:#4A3728;line-height:1.8;white-space:pre-wrap}
+
+  .loading-bar{height:3px;background:#E8DCC8;border-radius:2px;overflow:hidden;margin-bottom:14px;display:none}
+  .loading-bar.on{display:block}
+  .loading-bar .fill{height:100%;background:linear-gradient(90deg,#C9A84C,#B8922E);border-radius:2px;animation:load 3s ease-in-out infinite;width:30%}
+  @keyframes load{0%{transform:translateX(-100%)}100%{transform:translateX(400%)}}
+
+  .company-info{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;padding:12px 14px;background:#fff;border:1px solid #E8DCC8;border-radius:12px}
+  .company-info .left{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .company-info .ticker{font-size:22px;font-weight:800;color:#6F4E37}
+  .company-info .name{font-size:12px;color:#B8A080}
+  .company-info .right{text-align:right}
+  .company-info .price{font-size:24px;font-weight:700;color:#6F4E37}
+  .company-info .change{font-size:13px;font-weight:600;margin-top:2px}
+  .change.up{color:#059669}
+  .change.dn{color:#DC2626}
+  .company-info .detail{font-size:10px;color:#B8A080;margin-top:4px}
+  .company-info .detail span{margin-right:12px}
+
+  @media(max-width:800px){
+    .agents-grid{grid-template-columns:repeat(2,1fr)}
+    .company-info .right{text-align:left;width:100%}
+  }
+  @media(max-width:500px){
+    .agents-grid{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <a href="/works" class="logo">
+      <div class="logo-icon">K</div>
+      <div>
+        <div class="logo-text">KOPI <span>Stock Swarm</span></div>
+        <div class="subtitle">多智能体股票分析 · Multi-Agent Analysis</div>
+      </div>
+    </a>
+  </div>
+
+  <div class="quick-stocks">
+    <button onclick="pick('AAPL')">AAPL</button>
+    <button onclick="pick('GOOGL')">GOOGL</button>
+    <button onclick="pick('MSFT')">MSFT</button>
+    <button onclick="pick('TSLA')">TSLA</button>
+    <button onclick="pick('AMZN')">AMZN</button>
+    <button onclick="pick('NVDA')">NVDA</button>
+    <button onclick="pick('META')">META</button>
+    <button onclick="pick('COST')">COST</button>
+    <button onclick="pick('PLTR')">PLTR</button>
+    <button onclick="pick('TSM')">TSM</button>
+    <button onclick="pick('BTC')">BTC</button>
+    <button onclick="pick('ETH')">ETH</button>
+  </div>
+
+  <div class="search-box">
+    <input id="ticker" placeholder="输入股票代码，如 AAPL" value="AAPL" onkeydown="if(event.key==='Enter') analyze()">
+    <button id="goBtn" onclick="analyze()">🚀 多智能体分析</button>
+  </div>
+
+  <div id="companyInfo" class="company-info" style="display:none"></div>
+  <div id="loadingBar" class="loading-bar"><div class="fill"></div></div>
+  <div id="agentsGrid" class="agents-grid"></div>
+  <div id="chartArea" class="chart-area" style="display:none">
+    <div class="chart-p"><div id="tv"></div></div>
+  </div>
+  <div id="summaryPanel" class="summary-panel" style="display:none">
+    <div class="title">📊 综合决策 <span id="verdictBadge"></span></div>
+    <div id="summaryContent" class="content"></div>
+  </div>
+</div>
+
+<script>
+const AGENTS = [
+  {id:'bull', icon:'🐂', name:'多头分析师', role:'看涨论点', prompt:'你是多头股票分析师。分析{ticker}的看涨因素：增长潜力、竞争优势、利好催化剂。用中文，列出3-5个核心看涨理由，每个1-2句。'},
+  {id:'bear', icon:'🐻', name:'空头分析师', role:'看跌论点', prompt:'你是空头股票分析师。分析{ticker}的看跌因素：风险、估值过高、竞争威胁。用中文，列出3-5个核心看跌理由，每个1-2句。'},
+  {id:'data', icon:'📊', name:'数据分析师', role:'技术面', prompt:'你是量化数据分析师。分析{ticker}的技术面：关键支撑位/阻力位、趋势方向、成交量分析、RSI/MACD信号。用中文，列出4-6个关键数据点。'},
+  {id:'macro', icon:'🌍', name:'宏观分析师', role:'宏观经济', prompt:'你是宏观经济分析师。分析影响{ticker}的宏观因素：行业趋势、政策环境、全球经济影响。用中文，列出3-5个宏观因素。'}
+];
+
+const TICKERS = {AAPL:'Apple Inc.', GOOGL:'Alphabet Inc.', MSFT:'Microsoft Corp.', TSLA:'Tesla Inc.',
+  AMZN:'Amazon.com Inc.', NVDA:'NVIDIA Corp.', META:'Meta Platforms Inc.', COST:'Costco Wholesale',
+  PLTR:'Palantir Technologies', TSM:'Taiwan Semiconductor', BTC:'Bitcoin', ETH:'Ethereum'};
+
+const API = '/mimo-playground/api';
+
+function pick(t) {
+  document.getElementById('ticker').value = t;
+  analyze();
+}
+
+async function fetchQuote(symbol) {
+  try {
+    const r = await fetch(API + '/stock/quote?symbol=' + encodeURIComponent(symbol));
+    return await r.json();
+  } catch { return null; }
+}
+
+async function analyze() {
+  const t = document.getElementById('ticker').value.trim().toUpperCase();
+  if (!t) return;
+  document.getElementById('goBtn').disabled = true;
+  document.getElementById('loadingBar').classList.add('on');
+
+  // Fetch real-time quote
+  const quote = await fetchQuote(t);
+  const name = (quote && quote.name) || TICKERS[t] || t;
+  const price = quote ? quote.price : null;
+  const change = quote ? quote.change : null;
+  const changePct = quote ? quote.change_pct : null;
+  const currency = quote ? quote.currency : 'USD';
+
+  // Company info with real-time data
+  document.getElementById('companyInfo').style.display = 'flex';
+  let html = '<div class="left"><div class="ticker">' + t + '</div><div class="name">' + name + '</div></div>';
+  if (price) {
+    const cls = change >= 0 ? 'up' : 'dn';
+    const sign = change >= 0 ? '+' : '';
+    html += '<div class="right"><div class="price">' + currency + ' ' + price.toFixed(2) + '</div>' +
+      '<div class="change ' + cls + '">' + sign + change.toFixed(2) + ' (' + sign + changePct.toFixed(2) + '%)</div>';
+    if (quote.high) html += '<div class="detail"><span>高 ' + quote.high.toFixed(2) + '</span><span>低 ' + (quote.low||'-').toFixed(2) + '</span><span>昨收 ' + (quote.prev_close||'-').toFixed(2) + '</span><span>量 ' + (quote.volume||'-') + '</span></div>';
+    html += '</div>';
+  } else {
+    html += '<div class="right"><div class="name">实时价获取中...</div></div>';
+  }
+  document.getElementById('companyInfo').innerHTML = html;
+
+  // Render agents
+  const grid = document.getElementById('agentsGrid');
+  grid.innerHTML = AGENTS.map(a => `
+    <div class="agent-card" id="agent-${a.id}">
+      <div class="icon">${a.icon}</div>
+      <div class="name">${a.name}</div>
+      <div class="role">${a.role}</div>
+      <div class="status"><span class="dot idle" id="dot-${a.id}"></span> <span id="status-${a.id}">等待中</span></div>
+      <div class="result" id="result-${a.id}"></div>
+    </div>
+  `).join('');
+
+  // TradingView chart
+  document.getElementById('chartArea').style.display = 'block';
+  setTimeout(() => {
+    if (window.tvWidget) { try { window.tvWidget.remove(); } catch(e) {} }
+    try {
+      window.tvWidget = new TradingView.widget({
+        container_id:'tv', width:'100%', height:'100%',
+        symbol: ['BTC','ETH'].includes(t) ? t + 'USD' : t,
+        interval:'D', timezone:'Asia/Singapore', theme:'light',
+        style:'1', locale:'en', toolbar_bg:'#FAF6F0',
+        enable_publishing:false, hide_side_toolbar:false,
+        autosize:true, studies:['RSI@tv-basicstudies','MACD@tv-basicstudies']
+      });
+    } catch(e){}
+  }, 200);
+
+  // Run all agents in parallel
+  const results = await Promise.all(AGENTS.map(a => runAgent(a, t)));
+  document.getElementById('loadingBar').classList.remove('on');
+
+  // Generate summary
+  const summary = await generateSummary(t, results);
+  document.getElementById('summaryPanel').style.display = 'block';
+  document.getElementById('summaryContent').textContent = summary;
+
+  const lower = summary.toLowerCase();
+  let badge = '<span class="badge hold">📌 持有</span>';
+  if (lower.includes('看涨') || lower.includes('买入') || lower.includes('bullish')) badge = '<span class="badge buy">📈 看涨</span>';
+  if (lower.includes('看跌') || lower.includes('卖出') || lower.includes('bearish')) badge = '<span class="badge sell">📉 看跌</span>';
+  document.getElementById('verdictBadge').innerHTML = badge;
+  document.getElementById('goBtn').disabled = false;
+}
+
+async function runAgent(agent, ticker) {
+  const dot = document.getElementById('dot-' + agent.id);
+  const st = document.getElementById('status-' + agent.id);
+  const res = document.getElementById('result-' + agent.id);
+
+  dot.className = 'dot working';
+  st.textContent = '分析中...';
+
+  try {
+    const resp = await fetch(API + '/chat', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        model:'mimo-v2.5-pro',
+        messages:[
+          {role:'system', content:'你是专业的股票分析师。请用中文回答，简洁专业，每个要点1-2句。'},
+          {role:'user', content: agent.prompt.replace(/\{ticker\}/g, ticker)}
+        ]
+      })
+    });
+    const data = await resp.json();
+    if (data.ok && data.content) {
+      dot.className = 'dot done';
+      st.textContent = '完成 ✓';
+      res.textContent = data.content;
+      res.classList.add('show');
+      return data.content;
+    } else {
+      throw new Error(data.error || '未知错误');
+    }
+  } catch(e) {
+    dot.className = 'dot err';
+    st.textContent = '错误 ✗';
+    res.textContent = '请求失败: ' + e.message;
+    res.classList.add('show');
+    return '分析失败';
+  }
+}
+
+async function generateSummary(ticker, results) {
+  const prompt = '基于以下4位分析师对 ' + ticker + ' 的分析，给出综合投资建议（看涨/看跌/持有）及理由。中文，3-5句话。\n\n' +
+    '🐂 多头: ' + (results[0] || '无') + '\n\n🐻 空头: ' + (results[1] || '无') +
+    '\n\n📊 数据: ' + (results[2] || '无') + '\n\n🌍 宏观: ' + (results[3] || '无');
+
+  try {
+    const resp = await fetch(API + '/chat', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        model:'mimo-v2.5-pro',
+        messages:[
+          {role:'system', content:'你是首席投资官，综合多位分析师观点给出最终决策。用中文。'},
+          {role:'user', content: prompt}
+        ]
+      })
+    });
+    const data = await resp.json();
+    if (data.ok && data.content) return data.content;
+    return '综合判断完成（各分析师观点已在上方展示）';
+  } catch(e) {
+    return '综合判断完成（各分析师观点已在上方展示）';
+  }
+}
+
+window.onload = () => setTimeout(analyze, 500);
+</script>
+</body>
+</html>
