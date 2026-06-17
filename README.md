@@ -6,6 +6,12 @@
 
 ---
 
+<p align="center">
+  <img src="screenshot.jpg" alt="StockGenius 界面预览" width="100%">
+</p>
+
+---
+
 ## 🎀 什么是 StockGenius？
 
 StockGenius 是一只住在 KOPI 咖啡馆里的 AI 精灵 🧚‍♀️
