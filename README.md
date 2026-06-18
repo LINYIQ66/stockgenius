@@ -382,7 +382,7 @@ observability:
 
 **MIT License** — free for personal, commercial, and enterprise use. See [LICENSE](LICENSE).
 
-> Built by **Xing Bao Ku PTE LTD** · Singapore 🇸🇬
+> Built by **KOPI AI AGENT PTE LTD** · Singapore 🇸🇬
 >
 > We believe every company will run on AI. But AI infrastructure today is fragmented, expensive, and unreliable.
 >
