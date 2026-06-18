@@ -7,9 +7,11 @@
 > 一只会帮你分析股票的 AI 咖啡师 🤖☕
 
 <p align="center">
-  <img src="images/screenshot.jpg" alt="StockGenius 主界面" width="48%"> <img src="images/screenshot-2.jpg" alt="StockGenius 分析界面" width="48%">
+  <img src="images/screenshot-2.jpg" alt="StockGenius 分析界面" width="48%">
   <br>
-  <img src="images/screenshot-3.jpg" alt="StockGenius 财务数据" width="48%"> <img src="images/screenshot-4.jpg" alt="StockGenius Stock Swarm" width="48%">
+  <img src="images/screenshot-3.jpg" alt="StockGenius 财务数据" width="48%"> 
+  <br>
+  img src="images/screenshot-4.jpg" alt="StockGenius Stock Swarm" width="48%">
 <br>
   <img src="images/screenshot-5.jpg" alt="StockGenius 数据终端" width="48%">
 </p>
