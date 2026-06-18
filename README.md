@@ -1,12 +1,10 @@
----
+
 
 # 📈 StockGenius — KOPI AI 股票分析引擎 ☕
 
 > ✨ **数据源负责事实，LLM 负责分析** ✨
 >
 > 一只会帮你分析股票的 AI 咖啡师 🤖☕
-
----
 
 <p align="center">
   <img src="images/screenshot.jpg" alt="StockGenius 主界面" width="48%"> <img src="images/screenshot-2.jpg" alt="StockGenius 分析界面" width="48%">
