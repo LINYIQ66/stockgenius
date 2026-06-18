@@ -9,6 +9,13 @@
 </p>
 
 <p align="center">
+  <img src="images/lion.jpg" alt="King of the Market" width="60%" style="border-radius: 16px; box-shadow: 0 8px 24px rgba(0,0,0,0.2);">
+</p>
+<p align="center">
+  <em>数据为王，像狮子一样狩猎机会 🦁</em>
+</p>
+
+<p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/LINYIQ66/kopi-agent/main/landing/assets/banner.png">
     <img src="https://raw.githubusercontent.com/LINYIQ66/kopi-agent/main/assets/banner.png" alt="KOPI AI Agent" width="100%">
@@ -61,9 +68,9 @@ Automatically selects the optimal model for every request — balancing cost, la
 
 ```
 Client Request → KOPI Gateway → Router
-                                  ├── Default: MiMo v2.5 Pro (general reasoning)
-                                  ├── Flash: DeepSeek v4 / MiMo v2 Flash (fast responses)
-                                  ├── Strong: Claude Sonnet (complex reasoning)
+                                  ├── Default: MiMo v3 Pro (general reasoning)
+                                  ├── Flash: DeepSeek V4 Flash / MiMo v3 Flash (fast responses)
+                                  ├── Strong: Claude 4.6 Sonnet (complex reasoning)
                                   ├── Local: Ollama / vLLM (private data)
                                   └── Fallback: Nvidia NIM / OpenRouter (resilience)
 ```
@@ -159,7 +166,7 @@ In **3 minutes** you get:
 - ✅ API key auto-provisioned — no signup, no credit card
 - ✅ 80+ skills pre-installed and ready to use
 - ✅ Telegram / WeChat gateway configurable post-install
-- ✅ MiMo v2.5 Pro model included via KOPI Proxy
+- ✅ MiMo v3 Pro model included via KOPI Proxy
 
 ### Docker (Self-Hosted)
 
@@ -252,15 +259,15 @@ Built-in A/B testing across models, latency benchmarking, and cost profiling. Sh
 
 | Provider | Models | Status |
 |----------|--------|--------|
-| OpenAI | GPT-4.1, GPT-4o, GPT-4o-mini | ✅ |
-| Anthropic | Claude Sonnet 4, Claude Haiku | ✅ |
-| Google | Gemini 2.5 Pro, Gemini 2.5 Flash | ✅ |
-| DeepSeek | DeepSeek V4, V3 | ✅ |
-| Meta (vLLM) | Llama 3.1, 3.2 | ✅ |
-| MiMo | MiMo v2.5 Pro, v2 Flash | ✅ |
-| Qwen | Qwen 2.5, QwQ | ✅ |
+| OpenAI | GPT-5.5, GPT-5.4-mini, GPT-5.4-nano | ✅ |
+| Anthropic | Claude 4.6 Sonnet, Claude 4.6 Haiku | ✅ |
+| Google | Gemini 3.5 Flash, Gemini 3.1 Pro | ✅ |
+| DeepSeek | DeepSeek V4, DeepSeek V4 Flash | ✅ |
+| Meta (vLLM) | Llama 4 Scout, Llama 4 Maverick | ✅ |
+| MiMo | MiMo v3 Pro, MiMo v3 Flash | ✅ |
+| Qwen | Qwen 3, QwQ-32B | ✅ |
 | Alibaba | Tongyi Qianwen | ✅ |
-| OpenRouter | 300+ community models | ✅ |
+| OpenRouter | 500+ community models | ✅ |
 | Nvidia NIM | Nemotron, Llama NIM | ✅ |
 | Ollama | Local models | ✅ |
 | Custom | Any OpenAI-compatible endpoint | ✅ |
