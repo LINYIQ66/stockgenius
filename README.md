@@ -1,4 +1,14 @@
 <p align="center">
+  ☕
+</p>
+<p align="center">
+  ✨ <strong>数据源负责事实，LLM 负责分析</strong> ✨
+</p>
+<p align="center">
+  一只会帮你分析股票的 AI 咖啡师 🤖☕
+</p>
+
+<p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/LINYIQ66/kopi-agent/main/landing/assets/banner.png">
     <img src="https://raw.githubusercontent.com/LINYIQ66/kopi-agent/main/assets/banner.png" alt="KOPI AI Agent" width="100%">
