@@ -160,8 +160,6 @@
             <div class="sc"><div class="ic">📰 News</div><div class="tx" id="dNews">-</div></div>
             <div class="sc"><div class="ic">🔥 Social Sentiment</div><div class="tx" id="dSoc">-</div></div>
             <div class="sc"><div class="ic">💰 Financials</div><div class="tx" id="dFin">-</div></div>
-            <div class="sc"><div class="ic">👤 Founder/CEO</div><div class="tx" id="dFnd">-</div></div>
-            <div class="sc"><div class="ic">🏦 Institutional</div><div class="tx" id="dFnds">-</div></div>
             <div class="sc"><div class="ic">🌍 Macro</div><div class="tx" id="dMacro">-</div></div>
             <div class="sc"><div class="ic">🎯 Options</div><div class="tx" id="dOpts">-</div></div>
           </div>
@@ -251,7 +249,7 @@ async function fetchSEC(ticker){
       const arr=gaap[metric]?.units?.[unit]||[];
       const annuals=arr.filter(e=>e.form==='10-K').sort((a,b)=>b.fy-a.fy);
       if(annuals.length)return annuals[0];
-      const qtrs=arr.filter(e=>e.form==='10-Q').sort((a,b)=>b.fy-b.fy||(b.fp||'').localeCompare(a.fp||''));
+      const qtrs=arr.filter(e=>e.form==='10-Q').sort((a,b)=>(b.fy||0)-(a.fy||0)||(b.fp||'').localeCompare(a.fp||''));
       return qtrs[0]||arr[0]||null;
     }
     const rev=getLatest('Revenues')||getLatest('RevenueFromContractWithCustomerExcludingAssessedTax');
@@ -326,8 +324,6 @@ async function start(){
     $('dNews').textContent=d.news||'-';
     $('dSoc').textContent=d.social||'-';
     $('dFin').textContent=d.financial||'-';
-    $('dFnd').textContent=d.founder||'-';
-    $('dFnds').textContent=d.funds||'-';
     $('dMacro').textContent=d.macro||'-';
     $('dOpts').textContent=d.options||'-';
     showSEC(null);

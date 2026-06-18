@@ -209,8 +209,10 @@ async function analyze() {
     } catch(e){}
   }, 200);
 
+  // Build real data context from the quote for all agents
+  const dataCtx = buildDataContext(quote, t);
   // Run all agents in parallel
-  const results = await Promise.all(AGENTS.map(a => runAgent(a, t)));
+  const results = await Promise.all(AGENTS.map(a => runAgent(a, t, dataCtx)));
   document.getElementById('loadingBar').classList.remove('on');
 
   // Generate summary
@@ -226,7 +228,19 @@ async function analyze() {
   document.getElementById('goBtn').disabled = false;
 }
 
-async function runAgent(agent, ticker) {
+function buildDataContext(quote, ticker) {
+  if (!quote || !quote.price) return '<实际数据不可用>';
+  const parts = [];
+  if (quote.price != null) parts.push(`当前价格: $${quote.price.toFixed(2)}`);
+  if (quote.change != null) parts.push(`涨跌: ${quote.change >= 0 ? '+' : ''}${quote.change.toFixed(2)} (${quote.change_pct?.toFixed(2) || 0}%)`);
+  if (quote.high != null) parts.push(`今日高: $${quote.high.toFixed(2)}`);
+  if (quote.low != null) parts.push(`今日低: $${quote.low.toFixed(2)}`);
+  if (quote.prev_close != null) parts.push(`昨收: $${quote.prev_close.toFixed(2)}`);
+  if (quote.volume != null) parts.push(`成交量: ${quote.volume.toLocaleString()}`);
+  return `【${ticker} 实时数据】\n` + parts.join(' | ');
+}
+
+async function runAgent(agent, ticker, dataCtx) {
   const dot = document.getElementById('dot-' + agent.id);
   const st = document.getElementById('status-' + agent.id);
   const res = document.getElementById('result-' + agent.id);
@@ -235,6 +249,9 @@ async function runAgent(agent, ticker) {
   st.textContent = '分析中...';
 
   try {
+    const userMsg = agent.id === 'data'
+      ? agent.prompt.replace('{ticker}', ticker) + '\n\n' + dataCtx + '\n\n请基于以上实时行情数据计算技术指标（支撑位/阻力位、RSI、MACD），不要凭空编造。'
+      : agent.prompt.replace('{ticker}', ticker) + '\n\n参考行情：\n' + dataCtx;
     const resp = await fetch(API + '/chat', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
@@ -242,7 +259,7 @@ async function runAgent(agent, ticker) {
         model:'mimo-v2.5-pro',
         messages:[
           {role:'system', content:'你是专业的股票分析师。请用中文回答，简洁专业，每个要点1-2句。'},
-          {role:'user', content: agent.prompt.replace(/\{ticker\}/g, ticker)}
+          {role:'user', content: userMsg}
         ]
       })
     });

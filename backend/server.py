@@ -101,6 +101,28 @@ async def get_news(symbol):
     except: pass
     return []
 
+def select_latest_filing(items, forms=("10-K", "10-Q"), annual_only=False):
+    """Select the most recent non-amended filing from a list of SEC items."""
+    if not items:
+        return None
+    candidates = [
+        x for x in items
+        if x.get("form") in forms
+        and x.get("filed")
+        and x.get("end")
+    ]
+    if annual_only:
+        candidates = [x for x in candidates if x.get("form") == "10-K"]
+    # Filter out amendments (10-K/A, 10-Q/A)
+    candidates = [x for x in candidates if not x.get("form", "").endswith("/A")]
+    if not candidates:
+        return None
+    candidates.sort(
+        key=lambda x: (x.get("end", ""), x.get("filed", ""), x.get("accn", "")),
+        reverse=True
+    )
+    return candidates[0]
+
 async def get_financials(symbol):
     """③ 财务 — SEC EDGAR companyfacts"""
     cik = TICKER_CIK.get(symbol)
@@ -114,23 +136,74 @@ async def get_financials(symbol):
             if r.status_code == 200:
                 facts = r.json().get("facts",{}).get("us-gaap",{})
                 result = {}
-                def latest_val(key):
-                    units = facts.get(key,{}).get("units",{}).get("USD",[])
-                    return units[-1] if units else None
-                rev = latest_val("RevenueFromContractWithCustomerExcludingAssessedTax") or latest_val("Revenues")
-                if rev: result["revenue"] = {"val": rev["val"], "fy": rev["fy"], "fp": rev["fp"]}
-                ni = latest_val("NetIncomeLoss")
-                if ni: result["net_income"] = {"val": ni["val"], "fy": ni["fy"], "fp": ni["fp"]}
-                eps = facts.get("EarningsPerShareBasic",{}).get("units",{}).get("USD/shares",[])
-                if eps: result["eps"] = {"val": eps[-1]["val"], "fy": eps[-1]["fy"], "fp": eps[-1]["fp"]}
-                assets = latest_val("Assets")
-                if assets: result["total_assets"] = assets["val"]
-                cash = latest_val("CashAndCashEquivalentsAtCarryingValue") or latest_val("Cash")
-                if cash: result["cash"] = cash["val"]
-                ocf = latest_val("NetCashProvidedByOperatingActivities")
-                if ocf: result["op_cash_flow"] = ocf["val"]
-                ebitda = latest_val("EarningsBeforeInterestTaxesDepreciationAndAmortization")
-                if ebitda: result["ebitda"] = ebitda["val"]
+                def get_items(key, unit_key="USD"):
+                    return facts.get(key,{}).get("units",{}).get(unit_key, [])
+                def get_annual_val(key, unit_key="USD"):
+                    items = get_items(key, unit_key)
+                    best = select_latest_filing(items, forms=("10-K",), annual_only=True)
+                    if best:
+                        return {"val": best["val"], "fy": best["fy"], "fp": best["fp"], "form": best.get("form",""), "end": best.get("end",""), "filed": best.get("filed","")}
+                    return None
+                def calc_ttm(key, unit_key="USD"):
+                    items = get_items(key, unit_key)
+                    qtrs = [x for x in items if x.get("form") == "10-Q" and x.get("val") is not None and not x.get("form","").endswith("/A")]
+                    qtrs.sort(key=lambda x: x.get("end", ""), reverse=True)
+                    if len(qtrs) >= 4:
+                        ttm_val = sum(x["val"] for x in qtrs[:4])
+                        return {"val": ttm_val, "fy": qtrs[0].get("fy"), "fp": "TTM", "form": "TTM", "end": qtrs[0].get("end",""), "filed": qtrs[0].get("filed","")}
+                    return None
+                def get_most_recent_val(key, unit_key="USD"):
+                    items = get_items(key, unit_key)
+                    best = select_latest_filing(items)
+                    if best:
+                        return best["val"]
+                    return None
+                # Revenue: annual (backward compatible dict)
+                for k in ("RevenueFromContractWithCustomerExcludingAssessedTax", "Revenues"):
+                    a = get_annual_val(k)
+                    if a: result["revenue"] = a; break
+                # Net income: annual (backward compatible dict)
+                ni = get_annual_val("NetIncomeLoss")
+                if ni: result["net_income"] = ni
+                # EPS: annual
+                eps_items = get_items("EarningsPerShareBasic", "USD/shares")
+                if not eps_items:
+                    eps_items = get_items("EarningsPerShareDiluted", "USD/shares")
+                eps_best = select_latest_filing(eps_items, forms=("10-K",), annual_only=True)
+                if eps_best:
+                    result["eps"] = {"val": eps_best["val"], "fy": eps_best["fy"], "fp": eps_best["fp"]}
+                # EBITDA: annual (value only for backward compat)
+                ebitda_items = get_items("EarningsBeforeInterestTaxesDepreciationAndAmortization")
+                ebitda_best = select_latest_filing(ebitda_items, forms=("10-K",), annual_only=True)
+                if ebitda_best:
+                    result["ebitda"] = ebitda_best["val"]
+                # OCF: annual (value only for backward compat)
+                ocf_items = get_items("NetCashProvidedByOperatingActivities")
+                ocf_best = select_latest_filing(ocf_items, forms=("10-K",), annual_only=True)
+                if ocf_best:
+                    result["op_cash_flow"] = ocf_best["val"]
+                # Balance sheet: most recent period
+                assets_val = get_most_recent_val("Assets")
+                if assets_val: result["total_assets"] = assets_val
+                cash_val = get_most_recent_val("CashAndCashEquivalentsAtCarryingValue")
+                if cash_val is None:
+                    cash_val = get_most_recent_val("Cash")
+                if cash_val: result["cash"] = cash_val
+                # --- TTM values ---
+                for k in ("RevenueFromContractWithCustomerExcludingAssessedTax", "Revenues"):
+                    t = calc_ttm(k)
+                    if t: result["revenue_ttm"] = t; break
+                ni_ttm = calc_ttm("NetIncomeLoss")
+                if ni_ttm: result["net_income_ttm"] = ni_ttm
+                eps_qtrs = [x for x in eps_items if x.get("form") == "10-Q" and x.get("val") is not None and not x.get("form","").endswith("/A")]
+                eps_qtrs.sort(key=lambda x: x.get("end", ""), reverse=True)
+                if len(eps_qtrs) >= 4:
+                    eps_ttm_val = sum(x["val"] for x in eps_qtrs[:4])
+                    result["eps_ttm"] = {"val": eps_ttm_val, "fy": eps_qtrs[0].get("fy"), "fp": "TTM", "form": "TTM", "end": eps_qtrs[0].get("end",""), "filed": eps_qtrs[0].get("filed","")}
+                ebitda_ttm = calc_ttm("EarningsBeforeInterestTaxesDepreciationAndAmortization")
+                if ebitda_ttm: result["ebitda_ttm"] = ebitda_ttm
+                ocf_ttm = calc_ttm("NetCashProvidedByOperatingActivities")
+                if ocf_ttm: result["op_cash_flow_ttm"] = ocf_ttm
                 return result
     except: pass
     return {}
@@ -219,10 +292,8 @@ async def get_macro():
     except: pass
     return results
 
-async def get_institutional(symbol):
-    """⑥ 机构持仓 — 基于 Stocktwits 数据 + 信息"""
-    # Stocktwits watcher count is a proxy for retail interest
-    # For real 13F data, we'd use SEC filings or Nasdaq Data Link
+async def get_retail_attention(symbol):
+    """公众关注度 — Stocktwits 散户情绪"""
     try:
         async with httpx.AsyncClient(timeout=10) as c:
             r = await c.get(f"https://api.stocktwits.com/api/2/streams/symbol/{symbol}.json")
@@ -247,20 +318,27 @@ async def get_options(symbol):
                 options = opt.get("options",[{}])[0]
                 calls = options.get("calls",[])
                 puts = options.get("puts",[])
+                # Get market price from Yahoo quote data
+                spot = (opt.get("quote",{}) or {}).get("regularMarketPrice", 0)
                 if calls and puts:
                     call_oi = sum(c.get("openInterest",0) for c in calls)
                     put_oi = sum(p.get("openInterest",0) for p in puts)
-                    max_oi_call = max(calls, key=lambda x: x.get("openInterest",0))
-                    max_oi_put = max(puts, key=lambda x: x.get("openInterest",0))
+                    top_oi_call = max(calls, key=lambda x: x.get("openInterest",0))
+                    top_oi_put = max(puts, key=lambda x: x.get("openInterest",0))
+                    # Find ATM option (strike closest to spot)
+                    atm_call = min(calls, key=lambda x: abs(x.get("strike",0) - spot)) if spot else (calls[0] if calls else None)
+                    atm_put = min(puts, key=lambda x: abs(x.get("strike",0) - spot)) if spot else (puts[0] if puts else None)
                     return {
                         "call_oi": call_oi, "put_oi": put_oi,
                         "pc_ratio": round(put_oi/call_oi, 2) if call_oi > 0 else 0,
-                        "max_call_strike": max_oi_call.get("strike"),
-                        "max_call_oi": max_oi_call.get("openInterest"),
-                        "max_put_strike": max_oi_put.get("strike"),
-                        "max_put_oi": max_oi_put.get("openInterest"),
-                        "near_price_call_iv": calls[0].get("impliedVolatility"),
-                        "near_price_put_iv": puts[0].get("impliedVolatility"),
+                        "top_oi_call_strike": top_oi_call.get("strike"),
+                        "top_oi_call_oi": top_oi_call.get("openInterest"),
+                        "top_oi_put_strike": top_oi_put.get("strike"),
+                        "top_oi_put_oi": top_oi_put.get("openInterest"),
+                        "atm_call_iv": round(atm_call.get("impliedVolatility",0),4) if atm_call else None,
+                        "atm_put_iv": round(atm_put.get("impliedVolatility",0),4) if atm_put else None,
+                        "atm_call_strike": atm_call.get("strike") if atm_call else None,
+                        "atm_put_strike": atm_put.get("strike") if atm_put else None,
                     }
     except: pass
     return {}
@@ -318,7 +396,7 @@ async def analyze(request: Request):
         get_financials(symbol),
         get_social(symbol),
         get_macro(),
-        get_institutional(symbol),
+        get_retail_attention(symbol),
         get_options(symbol),
     )
     ceo_fact = await get_wikipedia_ceo(symbol)
@@ -356,16 +434,33 @@ async def analyze(request: Request):
             ctx += f"- Operating Cash Flow: ${fin['op_cash_flow']/1e9:.2f}B\n"
         if "ebitda" in fin:
             ctx += f"- EBITDA: ${fin['ebitda']/1e9:.2f}B\n"
+        # TTM values
+        if "revenue_ttm" in fin:
+            r = fin["revenue_ttm"]
+            ctx += f"- Revenue (TTM): ${r['val']/1e9:.2f}B ({r['end']})\n"
+        if "net_income_ttm" in fin:
+            ni = fin["net_income_ttm"]
+            ctx += f"- Net Income (TTM): ${ni['val']/1e9:.2f}B ({ni['end']})\n"
+        if "eps_ttm" in fin:
+            ctx += f"- EPS (TTM): ${fin['eps_ttm']['val']:.2f} ({fin['eps_ttm']['end']})\n"
+        if "ebitda_ttm" in fin:
+            ctx += f"- EBITDA (TTM): ${fin['ebitda_ttm']['val']/1e9:.2f}B ({fin['ebitda_ttm']['end']})\n"
+        if "op_cash_flow_ttm" in fin:
+            ctx += f"- OCF (TTM): ${fin['op_cash_flow_ttm']['val']/1e9:.2f}B ({fin['op_cash_flow_ttm']['end']})\n"
     else:
         ctx += "\nFinancials: SEC EDGAR data unavailable for this ticker\n"
 
-    # ④ 社媒
+    # ④ 社媒 + 公众关注度
     if social:
         ctx += f"\nSocial (Stocktwits):\n"
         ctx += f"- Watchers: {social.get('watchers',0):,}\n"
         ctx += f"- Messages (30min): {social.get('messages_30m',0)}\n"
         ctx += f"- Sentiment: {social.get('bullish',0)} bullish / {social.get('bearish',0)} bearish\n"
         ctx += f"- Recent chatter: " + " | ".join(social.get('top_messages',[])) + "\n"
+        if inst and inst.get('watchlist_count',0) > social.get('watchers',0):
+            ctx += f"- Retail Watchlist: {inst.get('watchlist_count',0):,}\n"
+    elif inst:
+        ctx += f"\nSocial (Stocktwits):\n- Retail Watchlist: {inst.get('watchlist_count',0):,}\n"
 
     # ⑤ 宏观
     if macro:
@@ -384,20 +479,15 @@ async def analyze(request: Request):
     else:
         ctx += "\nMacro: data unavailable\n"
 
-    # ⑥ 机构
-    if inst:
-        ctx += f"\nInstitutional:\n- Stocktwits Watchlist: {inst.get('watchlist_count',0):,}\n"
-    else:
-        ctx += "\nInstitutional: data unavailable\n"
-
-    # ⑦ 期权
+    # ⑤ 期权
     if opts:
         ctx += f"\nOptions:\n"
         ctx += f"- Put/Call OI Ratio: {opts.get('pc_ratio',0):.2f}\n"
-        ctx += f"- Max Pain Call: ${opts.get('max_call_strike','N/A')} (OI: {opts.get('max_call_oi','N/A')})\n"
-        ctx += f"- Max Pain Put: ${opts.get('max_put_strike','N/A')} (OI: {opts.get('max_put_oi','N/A')})\n"
-        ctx += f"- Near ATM Call IV: {opts.get('near_price_call_iv','N/A')}\n"
-        ctx += f"- Near ATM Put IV: {opts.get('near_price_put_iv','N/A')}\n"
+        ctx += f"- Top Call OI: ${opts.get('top_oi_call_strike','N/A')} (OI: {opts.get('top_oi_call_oi','N/A')})\n"
+        ctx += f"- Top Put OI: ${opts.get('top_oi_put_strike','N/A')} (OI: {opts.get('top_oi_put_oi','N/A')})\n"
+        if opts.get('atm_call_iv'):
+            ctx += f"- ATM Call IV: {opts['atm_call_iv']:.2%} (Strike ${opts.get('atm_call_strike','N/A')})\n"
+            ctx += f"- ATM Put IV: {opts['atm_put_iv']:.2%} (Strike ${opts.get('atm_put_strike','N/A')})\n"
     else:
         ctx += "\nOptions: data unavailable\n"
 
@@ -419,13 +509,11 @@ Return ONLY valid JSON with these fields (4-6 detailed sentences each, with spec
 - risk: 低/中/高
 - technical: Support/resistance levels from price data, volume analysis, intraday pattern. Use actual H/L prices.
 - news: How EACH news headline affects this company's specific business lines. If no news, say so.
-- social: Stocktwits sentiment, message volume, bullish/bearish ratio. If no data, say unavailable.
+- social: Stocktwits sentiment, message volume, bullish/bearish ratio, retail watchlist count. If no data, say unavailable.
 - financial: SEC-sourced revenue, net income, EPS, cash position. Calculate PE if price+EPS available. If no data, say unavailable.
-- founder: CEO name from Wikipedia. If no data, say unavailable.
-- funds: Institutional interest from watchlist data. If no data, say unavailable.
 - macro: How 10Y yield, oil, VIX, CPI affect this stock. If no data, say unavailable.
-- options: Put/Call ratio, max pain, IV analysis. If no data, say unavailable.
-- strategy: Entry/stop-loss/target prices with reasoning based on ALL dimensions above. 5-7 sentences.
+- options: Put/Call ratio, top OI strikes, ATM IV analysis. If no data, say unavailable.
+- strategy: Entry/stop-loss/target prices with reasoning based on ALL 6 dimensions above. 5-7 sentences.
 
 {lang_instr}"""
 
@@ -457,8 +545,6 @@ Return ONLY valid JSON with these fields (4-6 detailed sentences each, with spec
         "news": data.get("news", "-"),
         "social": data.get("social", "-"),
         "financial": data.get("financial", "-"),
-        "founder": data.get("founder", "-"),
-        "funds": data.get("funds", "-"),
         "macro": data.get("macro", "-"),
         "options": data.get("options", "-"),
     }
